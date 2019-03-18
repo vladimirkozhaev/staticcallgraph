@@ -1,29 +1,27 @@
 package org.staticcallgraph
 
 import org.scalatest.FunSuite
+import org.staticcallgraph.model.ClassInfo
 
 class SetSuite extends FunSuite {
 
-  test("An empty Set should have size 0") {
-    assert(Set.empty.size == 0)
+  
+
+  test("Get resource") {
+    val jarsList = "src/test/resources/TestCall.jar" :: Nil
+    val map: Map[String, ClassInfo] = JCallGraph.processJarsPath(jarsList.toArray)
+
+    assert(map.size == 4)
+    val a: ClassInfo = map.get("testproject.ClassA").get
+    assert(a != null)
+    assert(a.methods.size == 2)
+    a.methods.keys.foreach(f => println(f))
+    val fooA = a.methods.get("fooA()").get
+//    assert(fooA.calls.size == 1)
+
+    JCallGraph.topsWithoutParents(map)
+    //assert(tops.size == 1)
+
   }
 
-  test("Two jars") {
-    val list="sex.jar"::"box.jar"::Nil
-    assert(Set.empty.size == 0)
-    assert(Util.createScanInfo(list)._1.size ==  2)
-  }
-  
-  
-   
-  
-  
-   test("Get resource") {
-    val jarsList="src/test/resources/TestCall.jar"::Nil
-	  val map=JCallGraph.processJarsPath(jarsList.toArray)
-	  
-	  assert(map.size==4)
-  }
-  
-  
 }

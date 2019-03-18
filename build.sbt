@@ -10,6 +10,8 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "1.6.1" % "test"
 libraryDependencies += "org.apache.bcel" % "bcel" % "6.0"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" 
 
+unmanagedBase := baseDirectory.value / "src/test/resources"
+
 
 
 resolvers += "Spring Dependencies" at "https://repo.springsource.org/libs-milestone"

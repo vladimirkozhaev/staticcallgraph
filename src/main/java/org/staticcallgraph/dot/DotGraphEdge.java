@@ -38,8 +38,8 @@ public class DotGraphEdge implements Renderable {
    * @param label, a label string
    */
   public void setLabel(String label){
-    label = DotGraphUtility.replaceQuotes(label);
-    label = DotGraphUtility.replaceReturns(label);
+    //label = DotGraphUtility.replaceQuotes(label);
+    //label = DotGraphUtility.replaceReturns(label);
     this.setAttribute("label", label);
   }
 

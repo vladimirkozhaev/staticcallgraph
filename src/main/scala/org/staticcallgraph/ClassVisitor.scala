@@ -25,16 +25,16 @@ class ClassVisitor(val clazz: JavaClass, var nameToClassMap: Map[String, ClassIn
     val methods = jc.getMethods();
 
     val classFullName = jc.getClassName();
-
     classInfo = nameToClassMap.getOrElse(classFullName, new ClassInfo(jc.getClassName()))
+    classInfo.javaClass = jc;
     if (!nameToClassMap.keySet.contains(classFullName)) {
       nameToClassMap += (classFullName -> classInfo);
     }
+
     methods.foreach(method => {
       DCManager.retrieveCalls(method, jc);
       DCManager.linkCalls(method);
       method.getAttributes();
-      val methodInfo = new ClassMethodInfo(method.getName(), method.getAttributes().map(_.toString()).toList);
 
       method.accept(this);
 
@@ -46,7 +46,7 @@ class ClassVisitor(val clazz: JavaClass, var nameToClassMap: Map[String, ClassIn
       if (constant.getTag() == 7) {
         val referencedClass =
           constantPool.constantToString(constant);
-        System.out.println(String.format(classReferenceFormat, referencedClass));
+        //System.out.println(String.format(classReferenceFormat, referencedClass));
       }
     })
   }
@@ -54,7 +54,7 @@ class ClassVisitor(val clazz: JavaClass, var nameToClassMap: Map[String, ClassIn
   override def visitMethod(method: Method): Unit = {
     val mg = new MethodGen(method, clazz.getClassName(), constants)
     val visitor = new MethodVisitor(mg, clazz, classInfo, nameToClassMap);
-    methodCalls = methodCalls ++ visitor.start();
+    nameToClassMap = visitor.start();
   }
 
   def start(): ClassVisitor = {

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphdesc:GVFigureDescription xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:graphdesc="http://org.emftools.emf2gv.graphdesc/1.1.0">
+  <ePackages href="http://maven.apache.org/POM/4.0.0#/"/>
+  <classFigures headerBackgroundColor="#D0BCFE" bodyBackgroundColor="#EFE8FE">
+    <eClass href="http://maven.apache.org/POM/4.0.0#//ActivationOS"/>
+    <labelEAttribute href="http://maven.apache.org/POM/4.0.0#//ActivationOS/name"/>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//ActivationOS/family"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//ActivationOS/arch"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//ActivationOS/version"/>
+    </attributeFigures>
+  </classFigures>
+  <classFigures bodyBackgroundColor="#DEE9FD">
+    <eClass href="http://maven.apache.org/POM/4.0.0#//Build"/>
+    <labelEAttribute href="http://maven.apache.org/POM/4.0.0#//BuildBase/defaultGoal"/>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//BuildBase/directory"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//BuildBase/finalName"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//BuildBase/filters"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//Build/sourceDirectory"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//Build/scriptSourceDirectory"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//Build/testSourceDirectory"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//Build/outputDirectory"/>
+    </attributeFigures>
+    <attributeFigures xsi:type="graphdesc:AttributeFigure">
+      <eAttribute href="http://maven.apache.org/POM/4.0.0#//Build/testOutputDirectory"/>
+    </attributeFigures>
+  </classFigures>
+</graphdesc:GVFigureDescription>

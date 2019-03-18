@@ -17,19 +17,28 @@ import org.staticcallgraph.model.ClassInfo
 import org.staticcallgraph.model.ClassMethodInfo
 import org.staticcallgraph.model.ClassMethodInfo
 import org.apache.bcel.generic.ReferenceType
+import org.apache.bcel.generic.InvokeInstruction
 
 class MethodVisitor(val mg: MethodGen, val visitedClass: JavaClass, val classInfo: ClassInfo, var nameToClassMap: Map[String, ClassInfo]) extends EmptyVisitor {
   val cp = mg.getConstantPool();
-  val format = "M:" + visitedClass.getClassName() + ":" + mg.getName() + "(" + mg.getArgumentTypes().mkString(",") + ")" + " " + "(%s)%s:%s(%s)";
+  //val format = "M:" + visitedClass.getClassName() + ":" + mg.getName() + "(" + mg.getArgumentTypes().mkString(",") + ")" + " " + "(%s)%s:%s(%s)";
   var methodCalls: ListBuffer[String] = ListBuffer[String]();
-  val method: ClassMethodInfo = new ClassMethodInfo(mg.getMethod().getName(), mg.getMethod().getArgumentTypes().toList.map(_.toString()));
-  def start(): List[String] = {
+  //val method: ClassMethodInfo = new ClassMethodInfo(mg.getMethod().getName(), mg.getMethod().getArgumentTypes().toList.map(_.toString()));
+  val method: ClassMethodInfo = classInfo.methods.getOrElse(
+    ClassMethodInfo.getMethodKey(mg.getName, mg.getArgumentTypes().map(_.toString()).toList),
+    new ClassMethodInfo(mg.getMethod().getName(), mg.getMethod().getArgumentTypes().toList.map(_.toString())))
+ 
+
+  if (!classInfo.methods.get(method.getName()).isDefined) {
+    classInfo.methods += (method.toString() -> method)
+
+  }
+
+  def start(): Map[String, ClassInfo] = {
     if (mg.isAbstract() || mg.isNative()) {
-      return List[String]();
+      return nameToClassMap;
 
     }
-
-    classInfo.methods += (method.toString() -> method)
 
     mg.getInstructionList().getInstructions().foreach(f => {
 
@@ -37,7 +46,7 @@ class MethodVisitor(val mg: MethodGen, val visitedClass: JavaClass, val classInf
         f.accept(this);
     })
 
-    return methodCalls.toList;
+    return nameToClassMap;
   }
 
   def visitInstruction(i: Instruction): Boolean = {
@@ -47,19 +56,31 @@ class MethodVisitor(val mg: MethodGen, val visitedClass: JavaClass, val classInf
       && !(i.isInstanceOf[ReturnInstruction]));
   }
 
-  override def visitINVOKEVIRTUAL(i: INVOKEVIRTUAL): Unit = {
+  def extracted(i: InvokeInstruction) = {
     val referenceType: ReferenceType = i.getReferenceType(cp);
-    val className: String = i.getClassName(cp);
+    val calledClassName: String = i.getClassName(cp);
 
-   
     val calledMethodName = i.getMethodName(cp);
-    val calledClassInfo = nameToClassMap.getOrElse(className, new ClassInfo(className));
-    val calledMethod:ClassMethodInfo = calledClassInfo.methods.getOrElse(ClassMethodInfo.getMethodKey(
+      val calledClassInfo = nameToClassMap.getOrElse(calledClassName, new ClassInfo(calledClassName));
+
+    if (nameToClassMap.keySet.count(_.equals(calledClassInfo.fullName())) > 0) {
+      nameToClassMap += (calledClassInfo.fullName() -> calledClassInfo)
+
+    }
+
+    val calledMethod: ClassMethodInfo = calledClassInfo.methods.getOrElse(ClassMethodInfo.getMethodKey(
       calledMethodName,
       i.getArgumentTypes(cp).toList.map(_.toString())), new ClassMethodInfo(
       calledMethodName, i.getArgumentTypes(cp).toList.map(_.toString())))
-      method.calls=(calledClassInfo,calledMethod)::method.calls
-      nameToClassMap+=(calledClassInfo.fullName()->calledClassInfo)   
+    method.calls = (calledClassInfo, calledMethod) :: method.calls
+
+    if (!calledClassInfo.methods.get(calledMethod.toString()).isDefined) {
+      calledClassInfo.methods += (calledMethod.toString() -> calledMethod)
+
+    }
+  }
+  override def visitINVOKEVIRTUAL(i: INVOKEVIRTUAL): Unit = {
+    extracted(i)
   }
 
   def splitClassOnNameAndPackage(className: String): (String, String) = {
@@ -69,16 +90,15 @@ class MethodVisitor(val mg: MethodGen, val visitedClass: JavaClass, val classInf
   }
 
   override def visitINVOKEINTERFACE(i: INVOKEINTERFACE) {
-    methodCalls += String.format(format, "I", i.getReferenceType(cp), i.getMethodName(cp), i.getArgumentTypes(cp).mkString(","));
+    extracted(i)
   }
 
   override def visitINVOKESPECIAL(i: INVOKESPECIAL) = {
-    methodCalls += String.format(format, "O", i.getReferenceType(cp), i.getMethodName(cp), i.getArgumentTypes(cp).mkString(","));
+    extracted(i)
   }
 
   override def visitINVOKEDYNAMIC(i: INVOKEDYNAMIC) = {
-    methodCalls += String.format(format, "D", i.getType(cp), i.getMethodName(cp),
-      i.getArgumentTypes(cp).mkString(","));
+    extracted(i)
   }
 
 }
