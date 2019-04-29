@@ -11,6 +11,11 @@ import org.apache.bcel.classfile.ClassParser
 import org.staticcallgraph.model.ClassInfo
 import org.staticcallgraph.dot.DotGraph
 import org.staticcallgraph.dot.DotGraphEdge
+import org.staticcallgraph.model.GraphEdge
+import org.staticcallgraph.model.GraphEdge
+import org.staticcallgraph.model.GraphEdge
+import org.staticcallgraph.model.GraphEdge
+import sun.security.util.Length
 
 object JCallGraph extends App {
   override def main(args: Array[String]): Unit = {
@@ -19,8 +24,10 @@ object JCallGraph extends App {
     args1(0) = "/home/voffka/Documents/projects/myfirstproject/src/test/resources/TestCall.jar"
     //getClass().getResource("/TestCall.jar").getFile();
     val maps = processJarsPath(args1)
-    
-    makeTheGraph(maps, "/home/voffka/Documents/projects/myfirstproject/src/main/resources/output.dot")
+    val nextId = { var i = 0; () => { i += 1; i } }
+    val edgesSet = createEdgesList(maps.values.toList, nextId)
+    println("str is:", edgesSet.size)
+    makeTheGraph(edgesSet, "/home/voffka/Documents/projects/myfirstproject/src/main/resources/output.dot")
   }
 
   def processJarsPath(args: Array[String]): Map[String, ClassInfo] = {
@@ -53,70 +60,86 @@ object JCallGraph extends App {
 
   }
 
-  def makeTheGraph(nameToClassMap: Map[String, ClassInfo], pathToFile: String): DotGraph = {
+  def makeTheGraph(set: Set[GraphEdge], pathToFile: String): DotGraph = {
     val dotGraph: DotGraph = new DotGraph("CallGraph")
     dotGraph.setGraphAttribute("splines", "ortho")
-    dotGraph.setGraphAttribute("nodesep","0.5")
-    dotGraph.setGraphAttribute("concentrate","true")
+    dotGraph.setGraphAttribute("nodesep", "0.5")
+    dotGraph.setGraphAttribute("concentrate", "true")
     dotGraph.setNodeShape("box")
     dotGraph.setGraphAttribute("rankdir", "LR")
-    val heads = topsWithoutParents(nameToClassMap);
-    val numberStream = Stream.iterate(0)(_ + 1).iterator
-     val nextId = { var i = 1; () => { i += 1; i } }
-    val headGraph = heads.map(head => {
-      val first = nextId()
-      val second = nextId()
 
-      (head, (first, second))
-    })
+    drawTheGraph(dotGraph, set)
 
-    val headClasses = List(heads);
-
-    
-    val l=List[(ClassInfo,(Int,Int))]()
-    val nodesToDraw=headGraph.flatMap(head=>addParentsOfHead(head, l,nameToClassMap,nextId))
-    
-    
-    drawTheGraph(dotGraph, nodesToDraw)
-
-   
     dotGraph.plot(pathToFile)
     return dotGraph;
   }
-  
-  def drawTheGraph(dotGraph: DotGraph,heads: List[(ClassInfo, (Int, Int))])= heads.foreach(head => {
-      val node1=dotGraph.drawNode(head._2._1.toString())
-      node1.setLabel("");
-      node1.setShape("point")
-      val node2=dotGraph.drawNode(head._2._2.toString())
-      node2.setLabel("")
-      node2.setShape("point")
-      val edge:DotGraphEdge=dotGraph.drawEdge(head._2._1.toString(), head._2._2.toString())
-      edge.setLabel("\"" + head._1.className + "\"")
-      edge.setAttribute("rank", "same")
-    })
 
- 
+  def drawTheGraph(dotGraph: DotGraph, edges: Set[GraphEdge]) = edges.foreach(e => {
+    val node1 = dotGraph.drawNode(e.startNum.toString)
+    node1.setLabel("");
+    node1.setShape("point")
+    val node2 = dotGraph.drawNode(e.endNum.toString)
+    node2.setLabel("")
+    node2.setShape("point")
+    val edge: DotGraphEdge = dotGraph.drawEdge(e.startNum.toString, e.endNum.toString)
+    edge.setLabel("\"" + e.label + "\"")
+    edge.setAttribute("rank", "same")
+  })
+
   def topsWithoutParents(nameToClassMap: Map[String, ClassInfo]): List[ClassInfo] =
 
-    return nameToClassMap.values.filter(classInfo => !(nameToClassMap.keySet.contains(classInfo.javaClass.getSuperclassName)
+    nameToClassMap.values.filter(classInfo => !(nameToClassMap.keySet.contains(classInfo.javaClass.getSuperclassName)
       || nameToClassMap.keySet.toSet.count(interface => classInfo.javaClass.getAllInterfaces.toSet.contains(interface)) > 0)).toList
 
-  def addParentsOfHead(node: (ClassInfo, (Int, Int)), heads: List[(ClassInfo, (Int, Int))], nameToClassMap: Map[String, ClassInfo],nextId:()=>Int): List[(ClassInfo, (Int, Int))] = {
-    val classInfo:ClassInfo = node._1
-    
-   val filter= nameToClassMap.values.filter(childClass => childClass.javaClass.getSuperClasses().indexOf(classInfo.javaClass)>=0||childClass.javaClass.getInterfaces.contains(classInfo.javaClass));
-   
-  
-   
-   val childHeads=filter .flatMap(chClass => addParentsOfHead(
-        (chClass, (node._2._2, nextId())),
-        heads,
-        nameToClassMap,nextId))
-    return (if (!heads.contains(node))
-      node :: heads
-    else
-      heads)++childHeads;
+  def createEdgesList(classInfos: List[ClassInfo], nextId: () => Int): Set[GraphEdge] = {
+    var edges: Set[GraphEdge] = Set[GraphEdge]();
+
+    classInfos.foreach(classInfo => {
+      edges = edges ++ createEdgesListForClassInfo(classInfo, classInfos, edges, nextId)
+    })
+    return edges;
+  }
+  /**
+   *
+   */
+
+  def createEdgesListForClassInfo(currentClass: ClassInfo, classInfos: List[ClassInfo], edges: Set[GraphEdge], nextId: () => Int): Set[GraphEdge] = {
+
+    var edgeOption = edges.find(edge => edge.startClass == currentClass && edge.endClass == currentClass)
+    if (edgeOption.isDefined) {
+      return edges
+    }
+
+    val classInfoParents = classInfos.filter(superClass => currentClass.javaClass.getSuperClasses().indexOf(superClass.javaClass) >= 0 || currentClass.javaClass.getInterfaces.indexOf(superClass.javaClass) >= 0)
+
+    return classInfoParents.length match {
+      case 0 => edges + GraphEdge(currentClass, currentClass, nextId(), nextId(), currentClass.fullName())
+      case _ => {
+        var edgesSet = Set[GraphEdge]()
+        edgesSet = edgesSet ++ edges;
+
+        classInfoParents.foreach(parentClassInfo => {
+
+          edgesSet = edgesSet ++ createEdgesListForClassInfo(parentClassInfo, classInfos, edgesSet, nextId)
+
+        })
+
+        var parentEdges = edgesSet.filter(superClassEdge => {
+
+          (currentClass.javaClass.getSuperClasses.indexOf(superClassEdge.endClass.javaClass) >= 0 || currentClass.javaClass.getInterfaces.indexOf(superClassEdge.endClass.javaClass) >= 0) && superClassEdge.startClass == superClassEdge.endClass
+        })
+
+        val firstParentEdge = parentEdges.toList.reverse.last
+        val currentClassEdge = GraphEdge(currentClass, currentClass, firstParentEdge.endNum, nextId(), currentClass.fullName())
+        edgesSet = edgesSet + currentClassEdge
+        parentEdges = parentEdges - firstParentEdge
+        parentEdges.foreach(additionalParentEdge => edgesSet = edgesSet + GraphEdge(additionalParentEdge.endClass, currentClass, additionalParentEdge.endNum, currentClassEdge.startNum, "Extends"))
+        return edgesSet;
+
+      }
+    }
 
   }
+
 }
+
