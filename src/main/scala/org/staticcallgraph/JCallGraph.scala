@@ -83,6 +83,9 @@ object JCallGraph extends App {
     node2.setShape("point")
     val edge: DotGraphEdge = dotGraph.drawEdge(e.startNum.toString, e.endNum.toString)
     edge.setLabel("\"" + e.label + "\"")
+    val prop=e.properties;
+    prop foreach(x=>edge.setAttribute(x._1,x._2))
+    //e.properties.foreach( node:(String,String)=>edge.setAttribute(key._1,key._2)
     edge.setAttribute("rank", "same")
   })
 
@@ -133,7 +136,11 @@ object JCallGraph extends App {
         val currentClassEdge = GraphEdge(currentClass, currentClass, firstParentEdge.endNum, nextId(), currentClass.fullName())
         edgesSet = edgesSet + currentClassEdge
         parentEdges = parentEdges - firstParentEdge
-        parentEdges.foreach(additionalParentEdge => edgesSet = edgesSet + GraphEdge(additionalParentEdge.endClass, currentClass, additionalParentEdge.endNum, currentClassEdge.startNum, "Extends"))
+        parentEdges.foreach(additionalParentEdge => {
+          val edge=GraphEdge(additionalParentEdge.endClass, currentClass, additionalParentEdge.endNum, currentClassEdge.startNum, "Extends").addProperty("style","dotted")
+          
+          edgesSet = edgesSet + edge
+          })
         return edgesSet;
 
       }
