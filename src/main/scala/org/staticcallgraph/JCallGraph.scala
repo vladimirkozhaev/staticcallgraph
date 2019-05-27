@@ -21,15 +21,36 @@ object JCallGraph extends App {
   override def main(args: Array[String]): Unit = {
 
     val args1: Array[String] = new Array[String](1);
-    args1(0) = "/home/voffka/Documents/projects/myfirstproject/src/test/resources/TestCall.jar"
+    args1(0) = "/home/voffka/Documents/projects/myfirstproject/src/test/resources/TestProjectMin.jar"
     //getClass().getResource("/TestCall.jar").getFile();
     val maps = processJarsPath(args1)
     val nextId = { var i = 0; () => { i += 1; i } }
-    val edgesSet = createEdgesList(maps.values.toList, nextId)
-    println("str is:", edgesSet.size)
+    val classDiagram = createClassDiagram(maps.values.toList, nextId)
+    val edgesSet = classDiagram //createMethodCalls(classDiagram)++classDiagram;
+
     makeTheGraph(edgesSet, "/home/voffka/Documents/projects/myfirstproject/src/main/resources/output.dot")
   }
 
+  def createMethodCalls(edges: Set[GraphEdge]): Set[GraphEdge] = {
+
+    val classesEdges = edges.filter(e => e.startClass == e.endClass)
+    return classesEdges.flatMap(edge => {
+      val methods = edge.startClass.methods
+      methods.flatMap(method => {
+        method._2.getCalls().map(call => {
+          val startClass = edge.endClass;
+          val startNum = edge.endNum;
+          val endClassEdge = edges.find(findEdge => findEdge.startClass == findEdge.endClass && findEdge.startClass == startClass)
+          val endClass = endClassEdge.get.startClass;
+          val endNum = endClassEdge.get.startNum
+          GraphEdge(startClass, endClass, startNum, endNum, startClass.className + "." + method._1 + "->" + endClass.className + "." + call._1).addProperty("style", "dotted")
+
+        })
+      });
+
+    });
+
+  }
   def processJarsPath(args: Array[String]): Map[String, ClassInfo] = {
     var nameToClassMap: Map[String, ClassInfo] = Map[String, ClassInfo]();
     args.foreach(f => {
@@ -62,7 +83,7 @@ object JCallGraph extends App {
 
   def makeTheGraph(set: Set[GraphEdge], pathToFile: String): DotGraph = {
     val dotGraph: DotGraph = new DotGraph("CallGraph")
-    dotGraph.setGraphAttribute("splines", "ortho")
+    dotGraph.setGraphAttribute("splines", "polylines")
     dotGraph.setGraphAttribute("nodesep", "0.5")
     dotGraph.setGraphAttribute("concentrate", "true")
     dotGraph.setNodeShape("box")
@@ -83,9 +104,9 @@ object JCallGraph extends App {
     node2.setShape("point")
     val edge: DotGraphEdge = dotGraph.drawEdge(e.startNum.toString, e.endNum.toString)
     edge.setLabel("\"" + e.label + "\"")
-    val prop=e.properties;
-    prop foreach(x=>edge.setAttribute(x._1,x._2))
-    //e.properties.foreach( node:(String,String)=>edge.setAttribute(key._1,key._2)
+    val prop = e.properties;
+    prop foreach (x => edge.setAttribute(x._1, x._2))
+
     edge.setAttribute("rank", "same")
   })
 
@@ -94,7 +115,7 @@ object JCallGraph extends App {
     nameToClassMap.values.filter(classInfo => !(nameToClassMap.keySet.contains(classInfo.javaClass.getSuperclassName)
       || nameToClassMap.keySet.toSet.count(interface => classInfo.javaClass.getAllInterfaces.toSet.contains(interface)) > 0)).toList
 
-  def createEdgesList(classInfos: List[ClassInfo], nextId: () => Int): Set[GraphEdge] = {
+  def createClassDiagram(classInfos: List[ClassInfo], nextId: () => Int): Set[GraphEdge] = {
     var edges: Set[GraphEdge] = Set[GraphEdge]();
 
     classInfos.foreach(classInfo => {
@@ -116,7 +137,15 @@ object JCallGraph extends App {
     val classInfoParents = classInfos.filter(superClass => currentClass.javaClass.getSuperClasses().indexOf(superClass.javaClass) >= 0 || currentClass.javaClass.getInterfaces.indexOf(superClass.javaClass) >= 0)
 
     return classInfoParents.length match {
-      case 0 => edges + GraphEdge(currentClass, currentClass, nextId(), nextId(), currentClass.fullName())
+      case 0 => {
+
+        edges + GraphEdge(currentClass, currentClass, nextId(), nextId(), currentClass.fullName()).addProperty("peripheries", if (currentClass.javaClass.isInterface()) {
+          "\"black:invis:black\""
+        } else {
+          "\"black\""
+        })
+
+      }
       case _ => {
         var edgesSet = Set[GraphEdge]()
         edgesSet = edgesSet ++ edges;
@@ -133,14 +162,32 @@ object JCallGraph extends App {
         })
 
         val firstParentEdge = parentEdges.toList.reverse.last
-        val currentClassEdge = GraphEdge(currentClass, currentClass, firstParentEdge.endNum, nextId(), currentClass.fullName())
+        val firstClassStartNum: Int = if (parentEdges.size > 1) {
+          nextId();
+        } else {
+          firstParentEdge.endNum
+        }
+        val currentClassEdge = GraphEdge(currentClass, currentClass, firstClassStartNum, nextId(), currentClass.fullName()).addProperty("color", if (currentClass.javaClass.isInterface()) {
+          "\"black:invis:black\""
+        } else {
+          "\"black\""
+        })
         edgesSet = edgesSet + currentClassEdge
-        parentEdges = parentEdges - firstParentEdge
+        
+        if (parentEdges.size == 1) {
+          parentEdges = parentEdges - firstParentEdge
+        }
+        
         parentEdges.foreach(additionalParentEdge => {
-          val edge=GraphEdge(additionalParentEdge.endClass, currentClass, additionalParentEdge.endNum, currentClassEdge.startNum, "Extends").addProperty("style","dotted")
-          
+          val edge = GraphEdge(additionalParentEdge.endClass, currentClass, additionalParentEdge.endNum,
+            currentClassEdge.startNum,
+            if (additionalParentEdge.endClass.javaClass.isClass() 
+                || (additionalParentEdge.endClass.javaClass.isInterface() 
+                && currentClass.javaClass.isInterface())) { "Extends" } 
+            else { "Implements" }).addProperty("style", "dashed")
+
           edgesSet = edgesSet + edge
-          })
+        })
         return edgesSet;
 
       }
