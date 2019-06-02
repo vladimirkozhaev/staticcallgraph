@@ -21,14 +21,20 @@ object JCallGraph extends App {
   override def main(args: Array[String]): Unit = {
 
     val args1: Array[String] = new Array[String](1);
-    args1(0) = "/home/voffka/Documents/projects/myfirstproject/src/test/resources/TestProjectMin.jar"
+    args1(0) = "/home/voffka/Documents/projects/myfirstproject/src/test/resources/TestCall.jar"
     //getClass().getResource("/TestCall.jar").getFile();
     val maps = processJarsPath(args1)
     val nextId = { var i = 0; () => { i += 1; i } }
-    val classDiagram = createClassDiagram(maps.values.toList, nextId)
-    val edgesSet = classDiagram //createMethodCalls(classDiagram)++classDiagram;
+    val classDiagram = addTheEdgeWeight(createClassDiagram(maps.values.toList, nextId))
+    val edgesSet = createMethodCalls(classDiagram) ++ classDiagram;
 
     makeTheGraph(edgesSet, "/home/voffka/Documents/projects/myfirstproject/src/main/resources/output.dot")
+  }
+
+  def addTheEdgeWeight(graphEdges: Set[GraphEdge]): Set[GraphEdge] = graphEdges.map(edge => edge.addProperty("weight", getTheEdgeWeight(edge, graphEdges).toString()))
+
+  def getTheEdgeWeight(currentEdge: GraphEdge, graphEdges: Set[GraphEdge]): Int = {
+    return 1 + graphEdges.filter(edge => currentEdge != edge && currentEdge.endClass.equals(edge.startClass)).foldLeft(1)((a, b) => a + getTheEdgeWeight(b, graphEdges));
   }
 
   def createMethodCalls(edges: Set[GraphEdge]): Set[GraphEdge] = {
@@ -95,7 +101,11 @@ object JCallGraph extends App {
     return dotGraph;
   }
 
-  def drawTheGraph(dotGraph: DotGraph, edges: Set[GraphEdge]) = edges.foreach(e => {
+  def drawTheGraph(dotGraph: DotGraph, edges: Set[GraphEdge]) = edges.toList.sortBy(edge => 
+    if (edge.properties.keySet.contains("weight")) 
+      ("" + edge.properties.get("weight").get)
+      .toInt 
+        else 1) foreach (e => {
     val node1 = dotGraph.drawNode(e.startNum.toString)
     node1.setLabel("");
     node1.setShape("point")
@@ -173,17 +183,17 @@ object JCallGraph extends App {
           "\"black\""
         })
         edgesSet = edgesSet + currentClassEdge
-        
+
         if (parentEdges.size == 1) {
           parentEdges = parentEdges - firstParentEdge
         }
-        
+
         parentEdges.foreach(additionalParentEdge => {
           val edge = GraphEdge(additionalParentEdge.endClass, currentClass, additionalParentEdge.endNum,
             currentClassEdge.startNum,
-            if (additionalParentEdge.endClass.javaClass.isClass() 
-                || (additionalParentEdge.endClass.javaClass.isInterface() 
-                && currentClass.javaClass.isInterface())) { "Extends" } 
+            if (additionalParentEdge.endClass.javaClass.isClass()
+              || (additionalParentEdge.endClass.javaClass.isInterface()
+                && currentClass.javaClass.isInterface())) { "Extends" }
             else { "Implements" }).addProperty("style", "dashed")
 
           edgesSet = edgesSet + edge
